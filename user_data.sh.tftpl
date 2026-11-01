@@ -1,0 +1,24 @@
+#!/bin/bash
+set -eu
+
+apt-get update
+apt-get install -y curl jq tar
+
+id actions || useradd -m -s /bin/bash actions
+
+mkdir -p /home/actions/actions-runner
+cd /home/actions/actions-runner
+
+VERSION=$(curl -fsSL https://api.github.com/repos/actions/runner/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+
+curl -fL \
+  "https://github.com/actions/runner/releases/download/v$${VERSION}/actions-runner-linux-x64-$${VERSION}.tar.gz" \
+  -o runner.tar.gz
+
+tar xzf runner.tar.gz
+chown -R actions:actions /home/actions/actions-runner
+
+su - actions -c "cd /home/actions/actions-runner && ./config.sh --url '${repo_url}' --token '${runner_token}' --unattended --name 'ec2-self-hosted-runner' --labels ec2-demo --work _work"
+
+./svc.sh install actions
+./svc.sh start
